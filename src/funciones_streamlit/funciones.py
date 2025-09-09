@@ -368,7 +368,8 @@ def _norm_txt_safe(x: str) -> str:
 def detectar_mesas_atipicas_por_partido(
     df: pd.DataFrame,
     partido: str,
-    umbral_pp: float = 10.0,  # umbral en puntos porcentuales
+    umbral_min: float = -5.0,  # mínimo permitido
+    umbral_max: float = 5.0,  # máximo permitido
     incluir_blancos_en_denominador: bool = False,
     col_distrito="Distrito",
     col_escuela="Establecimiento",
@@ -469,7 +470,10 @@ def detectar_mesas_atipicas_por_partido(
     # Desvío en puntos porcentuales
     base["desvio_pp"] = base["pct_mesa"] - base["pct_escuela"]
     # Filtrar por umbral (absoluto)
-    outliers = base[base["desvio_pp"] < -umbral_pp].copy()
+    # Filtrar por rango (entre mínimo y máximo)
+    outliers = base[
+        (base["desvio_pp"] >= umbral_min) & (base["desvio_pp"] <= umbral_max)
+    ].copy()
 
     # Redondeo para visualización
     outliers["pct_mesa"] = outliers["pct_mesa"].round(1)

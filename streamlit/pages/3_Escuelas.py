@@ -19,26 +19,35 @@ if df is None or df.empty:
         "No se pudo cargar el dataset. Verificá la ruta/archivo en Streamlit Cloud."
     )
     st.stop()
+
 partido = st.text_input("Partido a analizar", "FUERZA PATRIA")
 
-umbral_pp = st.slider("Umbral (puntos porcentuales)", 1, 50, 10)
+# Inputs de rango
+min_desvio = st.number_input("Desvío mínimo (≥)", value=-5.0, step=0.1)
+max_desvio = st.number_input("Desvío máximo (≤)", value=5.0, step=0.1)
+
 denominador = st.radio(
     "Denominador",
     ["Solo positivos", "Válidos (positivos + blancos)"],
     index=0,
 )
-
 incluir_blancos = denominador == "Válidos (positivos + blancos)"
 
 outliers = detectar_mesas_atipicas_por_partido(
     df,
     partido=partido,
-    umbral_pp=umbral_pp,
+    umbral_min=min_desvio,
+    umbral_max=max_desvio,
     incluir_blancos_en_denominador=incluir_blancos,
 )
 
-st.subheader(f"Mesas con desvío > {umbral_pp} pp en {partido}")
-st.dataframe(outliers, width="stretch")
+# Filtrar por rango definido por el usuario
+filtro = outliers[
+    (outliers["desvio_pp"] >= min_desvio) & (outliers["desvio_pp"] <= max_desvio)
+]
+
+st.subheader(f"Mesas con {min_desvio} ≤ desvío ≤ {max_desvio} pp en {partido}")
+st.dataframe(filtro, width="stretch")
 
 st.markdown(
     """
