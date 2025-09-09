@@ -14,6 +14,11 @@ from src.funciones_streamlit.funciones import (
 from utils.constantes import BASE
 
 df = crear_dataframe(BASE, ",", "DIPUTADOS PROVINCIALES", "SENADORES PROVINCIALES")
+if df is None or df.empty:
+    st.error(
+        "No se pudo cargar el dataset. Verificá la ruta/archivo en Streamlit Cloud."
+    )
+    st.stop()
 partido = st.text_input("Partido a analizar", "FUERZA PATRIA")
 
 umbral_pp = st.slider("Umbral (puntos porcentuales)", 1, 50, 10)

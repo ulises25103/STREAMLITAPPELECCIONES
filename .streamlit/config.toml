@@ -1,0 +1,3 @@
+[server]
+fileWatcherType = "poll"   # evita inotify/watchdog
+runOnSave = false          # opcional: no recargues en cada guardado
