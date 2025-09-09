@@ -2,6 +2,7 @@ import streamlit as st
 from pathlib import Path
 import sys
 import pandas as pd
+from __future__ import annotations
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))

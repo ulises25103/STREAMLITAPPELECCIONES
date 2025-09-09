@@ -4,6 +4,7 @@ import os
 import streamlit as st
 import pandas as pd
 import unicodedata
+from __future__ import annotations
 
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))

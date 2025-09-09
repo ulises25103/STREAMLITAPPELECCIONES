@@ -7,6 +7,7 @@ from importlib import reload
 import streamlit.components.v1 as components
 import json
 from datetime import datetime as dt
+from __future__ import annotations
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
