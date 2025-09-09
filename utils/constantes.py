@@ -7,5 +7,5 @@ SRC_PATH = PROJECT_PATH / "src"  # Ruta de funciones
 STREAMLIT_PATH = PROJECT_PATH / "streamlit"  # App Streamlit
 
 # BASES
-BASE =  DATA_PATH / 'Base_Elecciones.csv'
+BASE =  DATA_PATH / 'Base_Elecciones.zip'
 ELECTORES_PATH = DATA_PATH / "ELECTORES.csv"

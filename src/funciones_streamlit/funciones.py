@@ -15,23 +15,44 @@ from utils.constantes import BASE, ELECTORES_PATH
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
-def crear_dataframe(archivo_csv,separador = str, cargo = str, cargo2 = str):
+def crear_dataframe(archivo_csv, separador=",", cargo=None, cargo2=None):
     try:
-        df = pd.read_csv(archivo_csv, encoding="utf-8", sep=separador, low_memory=False)
+        archivo_csv = str(archivo_csv)  # por si viene como Path
+        ext = Path(archivo_csv).suffix.lower()
+
+        # Detectar si es .zip o .csv
+        if ext == ".zip":
+            df = pd.read_csv(
+                archivo_csv,
+                encoding="utf-8",
+                sep=separador,
+                compression="zip",
+                low_memory=False,
+            )
+        else:
+            df = pd.read_csv(
+                archivo_csv, encoding="utf-8", sep=separador, low_memory=False
+            )
 
         if df.empty:
             print("El archivo está vacío")
             st.warning("⚠️ ERROR INESPERADO")
             return None
+
         # Reemplazar nulos en la columna "votos" por 0 (si existe)
         if "votos" in df.columns:
             df["votos"] = df["votos"].fillna(0)
-        if cargo is not None:
-            if "Cargo" in df.columns:
-                cargos_filtrar = [str(cargo).strip().lower(), str(cargo2).strip().lower()]
-                df = df[df["Cargo"].astype(str).str.strip().str.lower().isin(cargos_filtrar)]
-            else:
-                st.warning("⚠️ La columna 'Cargo' no existe en el archivo, no se aplicó el filtro.")
+
+        # Filtrar por cargo si corresponde
+        if cargo is not None and "Cargo" in df.columns:
+            cargos_filtrar = [str(cargo).strip().lower(), str(cargo2).strip().lower()]
+            df = df[
+                df["Cargo"].astype(str).str.strip().str.lower().isin(cargos_filtrar)
+            ]
+        elif cargo is not None:
+            st.warning(
+                "⚠️ La columna 'Cargo' no existe en el archivo, no se aplicó el filtro."
+            )
 
         return df
 
