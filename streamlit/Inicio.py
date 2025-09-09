@@ -26,7 +26,7 @@ st.subheader("CARGA DE DATOS")
 
 archivo = st.file_uploader(
     "📂 Cargar base de datos",
-    type=["csv", "xlsx"],
+    type=["csv", "xlsx", "zip"],
 )
 if archivo:
     # Mostrar nombre original
