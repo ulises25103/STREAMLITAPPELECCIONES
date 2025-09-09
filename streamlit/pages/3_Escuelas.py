@@ -38,7 +38,7 @@ outliers = detectar_mesas_atipicas_por_partido(
 )
 
 st.subheader(f"Mesas con desvío > {umbral_pp} pp en {partido}")
-st.dataframe(outliers, use_container_width=True)
+st.dataframe(outliers, width="stretch")
 
 st.markdown(
     """
