@@ -45,7 +45,9 @@ outliers = detectar_mesas_atipicas_por_partido(
 filtro = outliers[
     (outliers["desvio_pp"] >= min_desvio) & (outliers["desvio_pp"] <= max_desvio)
 ]
+cantidad_mesas = len(filtro)
 
+st.metric(label="Cantidad de mesas mostradas", value=cantidad_mesas)
 st.subheader(f"Mesas con {min_desvio} ≤ desvío ≤ {max_desvio} pp en {partido}")
 st.dataframe(filtro, width="stretch")
 
