@@ -12,7 +12,8 @@ sys.path.append(str(project_root))
 # Importar desde la ruta correcta
 
 from utils.constantes import DATA_PATH
-from utils.constantes import BASE, ELECTORES_PATH
+from utils.constantes import MUNICIPIOS_AMBA
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
@@ -75,7 +76,8 @@ def guardar_csv(
     ruta_salida: Path,
     sep: str = ",",
     encoding: str = "utf-8",
-    index: bool = False,):
+    index: bool = False,
+):
     """
     Guarda un DataFrame en un archivo CSV.
 
@@ -134,20 +136,19 @@ def contar_votos_por_tipo_eleccion(df: pd.DataFrame):
         votos_nulos.rename(columns={"votos": "votos_nulos"}, inplace=True)
 
         # Unir ambos resultados (outer join para no perder elecciones sin nulos o sin válidos)
-        resumen = pd.merge(
-            votos_validos, votos_nulos, on="Cargo", how="outer"
-        ).fillna(0)
+        resumen = pd.merge(votos_validos, votos_nulos, on="Cargo", how="outer").fillna(
+            0
+        )
         resumen[["votos_validos", "votos_nulos"]] = resumen[
             ["votos_validos", "votos_nulos"]
         ].astype(int)
 
     except KeyError as e:
-        print(
-            f"Error: Faltan columnas necesarias en el DataFrame {e}."
-        )
+        print(f"Error: Faltan columnas necesarias en el DataFrame {e}.")
     except Exception as e:
         print(f"Error al contar los votos por tipo de elección: {e}")
     return resumen
+
 
 def contar_total_electores(df: pd.DataFrame) -> int:
     """
@@ -184,9 +185,7 @@ def sumar_votos(df: pd.DataFrame, tipo: str) -> int:
     """
     try:
         # Asegurar que las columnas sean numéricas
-        df[tipo] = pd.to_numeric(
-            df[tipo], errors="coerce"
-        ).fillna(0)
+        df[tipo] = pd.to_numeric(df[tipo], errors="coerce").fillna(0)
         # Sumar total
         total = int(df[tipo].sum())
 
@@ -196,7 +195,10 @@ def sumar_votos(df: pd.DataFrame, tipo: str) -> int:
         print(f"Error al sumar votos validos: {e}")
         return None
 
-def crear_diccionario_votos_por_partido(df: pd.DataFrame, columna_partido: str = "Agrupacion", columna_votos: str = "votos") -> dict:
+
+def crear_diccionario_votos_por_partido(
+    df: pd.DataFrame, columna_partido: str = "Agrupacion", columna_votos: str = "votos"
+) -> dict:
     """
     Crea un diccionario con el total de votos por partido.
 
@@ -268,20 +270,28 @@ def votos_partido_y_validos_por_seccion(
     No calcula el porcentaje, solo agrupa y retorna los valores.
     """
     try:
+        # Verificar que las columnas existan
+        required_cols = [col_votos, col_seccion, col_tipo_voto, col_partido]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            print(f"Columnas faltantes en el DataFrame: {missing_cols}")
+            return {}
+
         # Asegurar tipo numérico
         df[col_votos] = (
             pd.to_numeric(df[col_votos], errors="coerce").fillna(0).astype(int)
         )
 
-        # Filtrar votos positivos (válidos)
-        df_validos = df[df[col_tipo_voto].str.upper() == "positivo"]
+        # Filtrar votos positivos (válidos) - usar comparación directa con minúsculas
+        df_validos = df[df[col_tipo_voto] == "positivo"]
 
         # Total válidos por sección
         votos_validos = df_validos.groupby(col_seccion)[col_votos].sum()
 
-        # Votos del partido por sección
+        # Votos del partido por sección - normalizar para comparación robusta
         df_partido = df_validos[
-            df_validos[col_partido].str.upper() == partido_objetivo.upper()
+            df_validos[col_partido].str.strip().str.upper()
+            == partido_objetivo.strip().upper()
         ]
         votos_partido = df_partido.groupby(col_seccion)[col_votos].sum()
 
@@ -300,6 +310,10 @@ def votos_partido_y_validos_por_seccion(
 
     except Exception as e:
         print(f"Error al agrupar votos por sección: {e}")
+        print(f"Tipo de error: {type(e).__name__}")
+        import traceback
+
+        traceback.print_exc()
         return {}
 
 
@@ -398,8 +412,8 @@ def detectar_mesas_atipicas_por_partido(
 
     # Normalizar
     df[col_votos] = pd.to_numeric(df[col_votos], errors="coerce").fillna(0)
-    tipo_norm  = df[col_tipo].astype(str).apply(_norm_txt_safe)
-    part_norm  = df[col_partido].astype(str).apply(_norm_txt_safe)
+    tipo_norm = df[col_tipo].astype(str).apply(_norm_txt_safe)
+    part_norm = df[col_partido].astype(str).apply(_norm_txt_safe)
     target_partido = _norm_txt_safe(partido)
     # Conjuntos de tipos
     es_positivo = tipo_norm.isin({"positivo", "positivos", "valido", "validos"})
@@ -417,18 +431,29 @@ def detectar_mesas_atipicas_por_partido(
             f"El partido '{partido}' no aparece tras normalizar. "
             f"Algunos partidos encontrados: {list(partidos_detectados.index[:5])}"
         )
-        return pd.DataFrame(columns=[
-            col_distrito, col_escuela, col_mesa,
-            "votos_partido_mesa","denom_mesa","pct_mesa",
-            "votos_partido_escuela","denom_escuela","pct_escuela","desvio_pp"
-        ])
+        return pd.DataFrame(
+            columns=[
+                col_distrito,
+                col_escuela,
+                col_mesa,
+                "votos_partido_mesa",
+                "denom_mesa",
+                "pct_mesa",
+                "votos_partido_escuela",
+                "denom_escuela",
+                "pct_escuela",
+                "desvio_pp",
+            ]
+        )
     votos_partido_mesa = (
-        df_partido.groupby([col_distrito, col_escuela, col_mesa])[col_votos].sum()
+        df_partido.groupby([col_distrito, col_escuela, col_mesa])[col_votos]
+        .sum()
         .reset_index(name="votos_partido_mesa")
     )
 
     votos_partido_escuela = (
-        df_partido.groupby([col_distrito, col_escuela])[col_votos].sum()
+        df_partido.groupby([col_distrito, col_escuela])[col_votos]
+        .sum()
         .reset_index(name="votos_partido_escuela")
     )
 
@@ -501,3 +526,263 @@ def detectar_mesas_atipicas_por_partido(
         "desvio_pp",
     ]
     return outliers[cols]
+
+
+def municipios_ganados(
+    df,
+    partidos,
+    municipios_amba=None,
+    col_municipio="Distrito",
+    col_partido="Agrupacion",
+    col_votos="votos",
+    col_tipo_voto="tipoVoto",
+):
+    """
+    Calcula cuántos municipios ganó cada partido de una lista.
+    Solo considera votos positivos (válidos).
+    Normaliza los nombres de partidos para comparación flexible (case-insensitive).
+
+    Args:
+        df: DataFrame con los datos electorales
+        partidos: Lista de partidos a analizar
+        municipios_amba: Lista opcional de municipios del AMBA
+        col_municipio: Nombre de la columna que contiene los municipios
+        col_partido: Nombre de la columna que contiene los partidos
+        col_votos: Nombre de la columna que contiene los votos
+        col_tipo_voto: Nombre de la columna que contiene el tipo de voto
+
+    Returns:
+        tuple: (conteo_total, conteo_amba, ganadores_total, ganadores_amba)
+    """
+    try:
+        # Verificar columnas necesarias
+        required_cols = [col_municipio, col_partido, col_votos, col_tipo_voto]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            print(f"ERROR: Columnas faltantes: {missing_cols}")
+            return (
+                pd.Series(dtype=int),
+                pd.Series(dtype=int),
+                pd.DataFrame(),
+                pd.DataFrame(),
+            )
+
+        # Función de normalización simple
+        def normalizar_texto(texto):
+            if pd.isna(texto):
+                return ""
+            return str(texto).strip().upper()
+
+        # Crear mapeo de partidos normalizados a originales
+        partidos_normalizados = {normalizar_texto(p): p for p in partidos}
+        partidos_norm_keys = list(partidos_normalizados.keys())
+
+        # Filtrar solo votos positivos
+        df_validos = df[df[col_tipo_voto] == "positivo"]
+
+        if df_validos.empty:
+            print("ERROR: No hay votos positivos en el DataFrame")
+            return (
+                pd.Series(dtype=int),
+                pd.Series(dtype=int),
+                pd.DataFrame(),
+                pd.DataFrame(),
+            )
+
+        # Limpiar valores NaN en columna de partidos
+        df_validos = df_validos.dropna(subset=[col_partido])
+
+        # Normalizar los nombres de partidos en el DataFrame para comparación
+        df_validos = df_validos.copy()
+        df_validos["partido_normalizado"] = df_validos[col_partido].apply(
+            normalizar_texto
+        )
+
+        # Filtrar solo los partidos que nos interesan (usando normalización)
+        df_filtrado = df_validos[
+            df_validos["partido_normalizado"].isin(partidos_norm_keys)
+        ]
+
+        if df_filtrado.empty:
+            print("ERROR: Ninguno de los partidos solicitados tiene votos positivos")
+            return (
+                pd.Series(dtype=int),
+                pd.Series(dtype=int),
+                pd.DataFrame(),
+                pd.DataFrame(),
+            )
+
+        # Asegurar que votos sea numérico
+        df_filtrado = df_filtrado.copy()
+        df_filtrado[col_votos] = pd.to_numeric(
+            df_filtrado[col_votos], errors="coerce"
+        ).fillna(0)
+
+        # Agrupar votos por municipio y partido
+        resumen = (
+            df_filtrado.groupby([col_municipio, col_partido])[col_votos]
+            .sum()
+            .reset_index()
+        )
+
+        if resumen.empty:
+            print("ERROR: No hay datos después de agrupar")
+            return (
+                pd.Series(dtype=int),
+                pd.Series(dtype=int),
+                pd.DataFrame(),
+                pd.DataFrame(),
+            )
+
+        # Encontrar ganador en cada municipio
+        ganadores_total = resumen.loc[
+            resumen.groupby(col_municipio)[col_votos].idxmax()
+        ]
+
+        # Contar cuántos ganó cada partido (usando nombres originales)
+        conteo_total = ganadores_total[col_partido].value_counts()
+
+        # Crear serie con todos los partidos solicitados (incluso los que ganaron 0)
+        conteo_completo_total = pd.Series(0, index=partidos, dtype=int)
+        for partido_original, cantidad in conteo_total.items():
+            partido_norm = normalizar_texto(partido_original)
+            if partido_norm in partidos_normalizados:
+                nombre_original_solicitado = partidos_normalizados[partido_norm]
+                conteo_completo_total[nombre_original_solicitado] = cantidad
+
+        # Si se proporcionaron municipios del AMBA, calcular estadísticas separadas
+        if municipios_amba:
+            # Normalizar nombres de municipios del AMBA
+            municipios_amba_norm = [normalizar_texto(m) for m in municipios_amba]
+
+            # Filtrar ganadores que están en el AMBA
+            ganadores_total_copy = ganadores_total.copy()
+            ganadores_total_copy["municipio_normalizado"] = ganadores_total_copy[
+                col_municipio
+            ].apply(normalizar_texto)
+            ganadores_amba = ganadores_total_copy[
+                ganadores_total_copy["municipio_normalizado"].isin(municipios_amba_norm)
+            ]
+
+            # Contar ganadores en AMBA
+            conteo_amba = ganadores_amba[col_partido].value_counts()
+            conteo_completo_amba = pd.Series(0, index=partidos, dtype=int)
+            for partido_original, cantidad in conteo_amba.items():
+                partido_norm = normalizar_texto(partido_original)
+                if partido_norm in partidos_normalizados:
+                    nombre_original_solicitado = partidos_normalizados[partido_norm]
+                    conteo_completo_amba[nombre_original_solicitado] = cantidad
+        else:
+            conteo_completo_amba = pd.Series(0, index=partidos, dtype=int)
+            ganadores_amba = pd.DataFrame()
+
+        return (
+            conteo_completo_total,
+            conteo_completo_amba,
+            ganadores_total,
+            ganadores_amba,
+        )
+
+    except Exception as e:
+        print(f"ERROR en municipios_ganados: {e}")
+        return (
+            pd.Series(dtype=int),
+            pd.Series(dtype=int),
+            pd.DataFrame(),
+            pd.DataFrame(),
+        )
+
+
+def secciones_ganadas(
+    df,
+    partidos,
+    col_seccion="Seccion",
+    col_partido="Agrupacion",
+    col_votos="votos",
+    col_tipo_voto="tipoVoto",
+):
+    """
+    Calcula cuántas secciones ganó cada partido de una lista.
+    Solo considera votos positivos (válidos).
+    Normaliza los nombres de partidos para comparación flexible (case-insensitive).
+    """
+    try:
+        # Verificar columnas necesarias
+        required_cols = [col_seccion, col_partido, col_votos, col_tipo_voto]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            print(f"ERROR: Columnas faltantes: {missing_cols}")
+            return pd.Series(dtype=int), pd.DataFrame()
+
+        # Función de normalización simple
+        def normalizar_texto(texto):
+            if pd.isna(texto):
+                return ""
+            return str(texto).strip().upper()
+
+        # Crear mapeo de partidos normalizados a originales
+        partidos_normalizados = {normalizar_texto(p): p for p in partidos}
+        partidos_norm_keys = list(partidos_normalizados.keys())
+
+        # Filtrar solo votos positivos
+        df_validos = df[df[col_tipo_voto] == "positivo"]
+
+        if df_validos.empty:
+            print("ERROR: No hay votos positivos en el DataFrame")
+            return pd.Series(dtype=int), pd.DataFrame()
+
+        # Limpiar valores NaN en columna de partidos
+        df_validos = df_validos.dropna(subset=[col_partido])
+
+        # Normalizar los nombres de partidos en el DataFrame para comparación
+        df_validos = df_validos.copy()
+        df_validos["partido_normalizado"] = df_validos[col_partido].apply(
+            normalizar_texto
+        )
+
+        # Filtrar solo los partidos que nos interesan (usando normalización)
+        df_filtrado = df_validos[
+            df_validos["partido_normalizado"].isin(partidos_norm_keys)
+        ]
+
+        if df_filtrado.empty:
+            print("ERROR: Ninguno de los partidos solicitados tiene votos positivos")
+            return pd.Series(dtype=int), pd.DataFrame()
+
+        # Asegurar que votos sea numérico (evitando SettingWithCopyWarning)
+        df_filtrado = df_filtrado.copy()
+        df_filtrado[col_votos] = pd.to_numeric(
+            df_filtrado[col_votos], errors="coerce"
+        ).fillna(0)
+
+        # Agrupar votos por sección y partido (usando nombre original)
+        resumen = (
+            df_filtrado.groupby([col_seccion, col_partido])[col_votos]
+            .sum()
+            .reset_index()
+        )
+
+        if resumen.empty:
+            print("ERROR: No hay datos después de agrupar")
+            return pd.Series(dtype=int), pd.DataFrame()
+
+        # Encontrar ganador en cada sección
+        ganadores = resumen.loc[resumen.groupby(col_seccion)[col_votos].idxmax()]
+
+        # Contar cuántas ganó cada partido (usando nombres originales)
+        conteo = ganadores[col_partido].value_counts()
+
+        # Crear serie con todos los partidos solicitados (incluso los que ganaron 0)
+        conteo_completo = pd.Series(0, index=partidos, dtype=int)
+        for partido_original, cantidad in conteo.items():
+            # Buscar si este partido está en nuestros partidos normalizados
+            partido_norm = normalizar_texto(partido_original)
+            if partido_norm in partidos_normalizados:
+                nombre_original_solicitado = partidos_normalizados[partido_norm]
+                conteo_completo[nombre_original_solicitado] = cantidad
+
+        return conteo_completo, ganadores
+
+    except Exception as e:
+        print(f"ERROR en secciones_ganadas: {e}")
+        return pd.Series(dtype=int), pd.DataFrame()
