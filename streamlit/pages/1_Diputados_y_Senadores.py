@@ -29,6 +29,7 @@ from src.funciones_streamlit.funciones import (
     analizar_rangos_votos,
     votos_por_seccion,
     obtener_secciones_ordenadas,
+    limpiar_nombres_secciones,
 )
 
 
@@ -90,11 +91,14 @@ elif pagina == "Análisis por secciones":
         unsafe_allow_html=True,
     )
     datos_FP = votos_partido_y_validos_por_seccion(df, "FUERZA PATRIA")
+    # Limpiar nombres de secciones
+    datos_FP = limpiar_nombres_secciones(datos_FP)
     solo_votos_partido_fp = {
         seccion: datos["votos_partido"] for seccion, datos in datos_FP.items()
     }
     mostrar_diccionario_como_tabla(
-        solo_votos_partido_fp, "📋 Total de votos por sección"
+        solo_votos_partido_fp,
+        "📋 Total de votos por sección (ordenadas alfabéticamente)","Sección"
     )
     porcentajes_FP = calcular_porcentaje_partido_por_seccion(datos_FP)
     st.subheader("📊 Porcentaje por secciones")
@@ -108,11 +112,15 @@ elif pagina == "Análisis por secciones":
         unsafe_allow_html=True,
     )
     datos_LLA = votos_partido_y_validos_por_seccion(df, "LA LIBERTAD AVANZA")
+    # Limpiar nombres de secciones
+    datos_LLA = limpiar_nombres_secciones(datos_LLA)
     solo_votos_partido_lla = {
         seccion: datos["votos_partido"] for seccion, datos in datos_LLA.items()
     }
     mostrar_diccionario_como_tabla(
-        solo_votos_partido_lla, "📋 Total de votos por sección"
+        solo_votos_partido_lla,
+        "📋 Total de votos por sección (ordenadas alfabéticamente)",
+        "Sección",
     )
     porcentajes_lla = calcular_porcentaje_partido_por_seccion(datos_LLA)
     st.subheader("📊 Porcentaje por secciones")
@@ -156,7 +164,9 @@ elif pagina == "Análisis por secciones":
             col1, col2 = st.columns([2, 1])
 
             with col1:
-                st.subheader(f"📊 Porcentajes de votos - {seccion_seleccionada}")
+                st.subheader(
+                    f"📊 Porcentajes de votos - Sección {seccion_seleccionada}"
+                )
 
                 # Crear gráfico de barras con porcentajes
                 import pandas as pd
@@ -179,7 +189,7 @@ elif pagina == "Análisis por secciones":
 
                 # Personalizar el gráfico
                 ax.set_xlabel("Porcentaje de votos (%)")
-                titulo = f"Distribución de votos en {seccion_seleccionada}"
+                titulo = f"Distribución de votos en Sección {seccion_seleccionada}"
                 if datos_seccion.get("votos_blancos", 0) > 0:
                     titulo += " (incluye votos en blanco)"
                 ax.set_title(titulo)
@@ -201,7 +211,7 @@ elif pagina == "Análisis por secciones":
                 st.pyplot(fig)
 
             with col2:
-                titulo_tabla = f"📋 Votos por partido - {seccion_seleccionada}"
+                titulo_tabla = f"📋 Votos por partido - Sección {seccion_seleccionada}"
                 if datos_seccion.get("votos_blancos", 0) > 0:
                     titulo_tabla += " (+ votos en blanco)"
                 st.subheader(titulo_tabla)
@@ -242,11 +252,11 @@ elif pagina == "Análisis por secciones":
                     value=f"{datos_seccion['total_votos']:,}".replace(",", "."),
                 )
         else:
-            st.error(f"No se encontraron datos para la sección {seccion_seleccionada}")
+            st.error(f"No se encontraron datos para la Sección {seccion_seleccionada}")
 
     # Información adicional
     st.info(
-        "💡 **Cómo usar:** Selecciona una sección del desplegable para ver el detalle de votos por partido en esa sección específica, tanto en gráfico como en tabla. Los votos en blanco se incluyen como un 'partido' adicional cuando existen."
+        "💡 **Cómo usar:** Selecciona una sección del desplegable (Primera, Segunda, etc.) para ver el detalle de votos por partido en esa sección específica, tanto en gráfico como en tabla. Los votos en blanco se incluyen como un 'partido' adicional cuando existen."
     )
 
 elif pagina == "Municipios":

@@ -102,6 +102,34 @@ def limpiar_cache():
     obtener_secciones_ordenadas.cache_clear()
 
 
+def limpiar_nombres_secciones(datos_dict):
+    """
+    Limpia los nombres de secciones en un diccionario, removiendo 'Sección'
+
+    Args:
+        datos_dict: Diccionario con secciones como claves
+
+    Returns:
+        dict: Diccionario con nombres de secciones limpios
+    """
+    if not datos_dict:
+        return {}
+
+    def limpiar_nombre_seccion(seccion):
+        """Limpia el nombre de la sección removiendo 'Sección'."""
+        seccion_limpia = seccion.replace("Sección", "").strip()
+        seccion_limpia = seccion_limpia.replace("SECCIÓN", "").strip()
+        return seccion_limpia
+
+    # Crear nuevo diccionario con nombres limpios
+    resultado_limpio = {}
+    for seccion_completa, datos in datos_dict.items():
+        seccion_limpia = limpiar_nombre_seccion(seccion_completa)
+        resultado_limpio[seccion_limpia] = datos
+
+    return resultado_limpio
+
+
 def estadisticas_cache():
     """Devuelve estadísticas del uso del cache."""
     stats = {
@@ -116,15 +144,17 @@ def estadisticas_cache():
     return stats
 
 
-def ordenar_secciones(secciones):
+def ordenar_secciones(secciones, limpiar_nombres=True):
     """
     Ordena las secciones por número ordinal (Primera, Segunda, Tercera, etc.)
+    Opcionalmente limpia los nombres removiendo "Sección"
 
     Args:
         secciones: Lista de nombres de secciones
+        limpiar_nombres: Si True, remueve "Sección" de los nombres
 
     Returns:
-        list: Lista ordenada de secciones
+        list: Lista ordenada de secciones (con nombres limpios si se especifica)
     """
     # Mapeo de números ordinales a valores numéricos
     ordinales = {
@@ -142,16 +172,34 @@ def ordenar_secciones(secciones):
         "DÉCIMA": 10,  # variante sin acento
     }
 
+    def limpiar_nombre_seccion(seccion):
+        """Limpia el nombre de la sección removiendo 'Sección'."""
+        seccion_limpia = seccion.replace("Sección", "").strip()
+        seccion_limpia = seccion_limpia.replace("SECCIÓN", "").strip()
+        return seccion_limpia
+
     def extraer_numero(seccion):
         """Extrae el número ordinal de una sección."""
-        seccion_upper = seccion.upper()
+        # Usar el nombre limpio para la comparación
+        nombre_para_comparar = seccion.upper()
+        if limpiar_nombres:
+            nombre_para_comparar = limpiar_nombre_seccion(seccion).upper()
+
         for ordinal, numero in ordinales.items():
-            if ordinal in seccion_upper:
+            if ordinal in nombre_para_comparar:
                 return numero
         return 999  # Si no encuentra ordinal, va al final
 
     # Ordenar por número extraído
-    return sorted(secciones, key=extraer_numero)
+    secciones_ordenadas = sorted(secciones, key=extraer_numero)
+
+    # Limpiar nombres si se solicita
+    if limpiar_nombres:
+        secciones_ordenadas = [
+            limpiar_nombre_seccion(seccion) for seccion in secciones_ordenadas
+        ]
+
+    return secciones_ordenadas
 
 
 @lru_cache(maxsize=16)
@@ -417,10 +465,10 @@ def calcular_porcentaje_partidos(diccionario_votos: dict) -> pd.Series:
 
 
 def mostrar_diccionario_como_tabla(
-    diccionario: dict, titulo: str = "📋 Total de votos por partido"
+    diccionario: dict, titulo: str = "📋 Total de votos por partido", tipo : str = "Partido"
 ):
     df = pd.Series(diccionario).sort_values(ascending=False).reset_index()
-    df.columns = ["Partido", "Votos"]
+    df.columns = [tipo, "Votos"]
 
     # Formatear los valores de la columna Votos con separador de miles
     df["Votos"] = df["Votos"].apply(lambda x: f"{x:,}".replace(",", "."))
@@ -979,8 +1027,14 @@ def votos_por_seccion(
                 return ""
             return str(texto).strip().upper()
 
+        # Si el nombre de sección no contiene "Sección", agregarlo para búsqueda
+        if "sección" not in seccion.lower():
+            seccion_completa = f"Sección {seccion}"
+        else:
+            seccion_completa = seccion
+
         # Normalizar nombre de sección para comparación
-        seccion_norm = normalizar_texto(seccion)
+        seccion_norm = normalizar_texto(seccion_completa)
 
         # Filtrar por sección específica usando índices optimizados
         df_seccion = df[
