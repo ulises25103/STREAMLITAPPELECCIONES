@@ -48,25 +48,24 @@ if df is None:
     st.error("No se pudieron cargar los datos necesarios")
     st.stop()
 
-total_electores = contar_total_electores(df_electores)
 df_resumen = contar_votos_por_tipo_eleccion(df)
-total_validos = sumar_votos(df_resumen, "votos_validos")
-print(total_validos)
-total_nulos = sumar_votos(df_resumen, "votos_nulos")
-print(total_nulos)
-total_votos = total_validos
+total_votos = sumar_votos(df_resumen, "votos_validos")
 
-participacion = (total_votos / total_electores) * 100
+participacion = (total_votos /  14227683) * 100
 if pagina == "General":
     st.subheader("Analisis General")
     st.divider()
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric(label="Total de votos", value=total_votos, delta=None)
+        st.metric(
+            label="Total de votos",
+            value=f"{total_votos:,}".replace(",", "."),
+            delta=None,
+        )
 
     with col2:
-        st.metric(label="Votantes habilitados", value=total_electores)
+        st.metric(label="Votantes habilitados", value= "14.227.683")
 
     with col3:
         st.metric(label="Participación", value=f"{round(participacion)}%")

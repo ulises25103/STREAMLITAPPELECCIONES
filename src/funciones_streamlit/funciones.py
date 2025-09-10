@@ -247,6 +247,10 @@ def mostrar_diccionario_como_tabla(
 ):
     df = pd.Series(diccionario).sort_values(ascending=False).reset_index()
     df.columns = ["Partido", "Votos"]
+
+    # Formatear los valores de la columna Votos con separador de miles
+    df["Votos"] = df["Votos"].apply(lambda x: f"{x:,}".replace(",", "."))
+
     st.subheader(titulo)
     st.table(df)
 
