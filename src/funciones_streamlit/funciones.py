@@ -693,6 +693,251 @@ def municipios_ganados(
         )
 
 
+def analizar_rangos_votos(
+    df,
+    partidos_interes,
+    col_municipio="Distrito",
+    col_partido="Agrupacion",
+    col_votos="votos",
+    col_tipo_voto="tipoVoto",
+):
+    """
+    Analiza los porcentajes de votos por municipio para partidos específicos
+    y los clasifica en rangos predefinidos.
+
+    Args:
+        df: DataFrame con los datos electorales
+        partidos_interes: Lista de partidos a analizar
+        col_municipio: Columna con los municipios
+        col_partido: Columna con los partidos
+        col_votos: Columna con los votos
+        col_tipo_voto: Columna con el tipo de voto
+
+    Returns:
+        dict: Diccionario con los rangos por partido
+    """
+    try:
+        # Verificar columnas necesarias
+        required_cols = [col_municipio, col_partido, col_votos, col_tipo_voto]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            print(f"ERROR: Columnas faltantes: {missing_cols}")
+            return {}
+
+        # Función de normalización
+        def normalizar_texto(texto):
+            if pd.isna(texto):
+                return ""
+            return str(texto).strip().upper()
+
+        # Filtrar solo votos positivos
+        df_validos = df[df[col_tipo_voto] == "positivo"]
+
+        if df_validos.empty:
+            print("ERROR: No hay votos positivos en el DataFrame")
+            return {}
+
+        # Limpiar valores NaN
+        df_validos = df_validos.dropna(subset=[col_partido])
+
+        # Calcular votos válidos totales por municipio
+        votos_validos_por_municipio = (
+            df_validos.groupby(col_municipio)[col_votos].sum().reset_index()
+        )
+        votos_validos_por_municipio = votos_validos_por_municipio.rename(
+            columns={col_votos: "votos_validos_total"}
+        )
+
+        # Calcular votos por partido y municipio
+        votos_partido_por_municipio = (
+            df_validos.groupby([col_municipio, col_partido])[col_votos]
+            .sum()
+            .reset_index()
+        )
+
+        # Unir con votos válidos totales
+        df_completo = pd.merge(
+            votos_partido_por_municipio,
+            votos_validos_por_municipio,
+            on=col_municipio,
+            how="left",
+        )
+
+        # Calcular porcentajes
+        df_completo["porcentaje"] = (
+            df_completo[col_votos] / df_completo["votos_validos_total"]
+        ) * 100
+
+        # Inicializar resultados
+        resultados = {}
+
+        for partido_interes in partidos_interes:
+            # Normalizar nombre del partido para comparación
+            partido_norm = normalizar_texto(partido_interes)
+
+            # Filtrar datos del partido específico
+            df_partido = df_completo[
+                df_completo[col_partido].apply(normalizar_texto) == partido_norm
+            ].copy()
+
+            if df_partido.empty:
+                print(f"ADVERTENCIA: No se encontraron datos para {partido_interes}")
+                resultados[partido_interes] = {
+                    "< 20%": 0,
+                    "20-30%": 0,
+                    "30-40%": 0,
+                    "40-50%": 0,
+                    "> 50%": 0,
+                }
+                continue
+
+            # Clasificar por rangos
+            rangos = {
+                "< 20%": len(df_partido[df_partido["porcentaje"] < 20]),
+                "20-30%": len(
+                    df_partido[
+                        (df_partido["porcentaje"] >= 20)
+                        & (df_partido["porcentaje"] < 30)
+                    ]
+                ),
+                "30-40%": len(
+                    df_partido[
+                        (df_partido["porcentaje"] >= 30)
+                        & (df_partido["porcentaje"] < 40)
+                    ]
+                ),
+                "40-50%": len(
+                    df_partido[
+                        (df_partido["porcentaje"] >= 40)
+                        & (df_partido["porcentaje"] < 50)
+                    ]
+                ),
+                "> 50%": len(df_partido[df_partido["porcentaje"] >= 50]),
+            }
+
+            resultados[partido_interes] = rangos
+
+        return resultados
+
+    except Exception as e:
+        print(f"ERROR en analizar_rangos_votos: {e}")
+        return {}
+
+
+def votos_por_seccion(
+    df,
+    seccion,
+    col_seccion="Seccion",
+    col_partido="Agrupacion",
+    col_votos="votos",
+    col_tipo_voto="tipoVoto",
+):
+    """
+    Calcula los votos por partido para una sección específica.
+    Solo considera votos positivos (válidos).
+
+    Args:
+        df: DataFrame con los datos electorales
+        seccion: Nombre de la sección a analizar
+        col_seccion: Columna que contiene las secciones
+        col_partido: Columna que contiene los partidos
+        col_votos: Columna que contiene los votos
+        col_tipo_voto: Columna que contiene el tipo de voto
+
+    Returns:
+        dict: Diccionario con votos por partido y totales
+    """
+    try:
+        # Verificar columnas necesarias
+        required_cols = [col_seccion, col_partido, col_votos, col_tipo_voto]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            print(f"ERROR: Columnas faltantes: {missing_cols}")
+            return {}
+
+        # Función de normalización
+        def normalizar_texto(texto):
+            if pd.isna(texto):
+                return ""
+            return str(texto).strip().upper()
+
+        # Normalizar nombre de sección para comparación
+        seccion_norm = normalizar_texto(seccion)
+
+        # Filtrar solo votos positivos
+        df_validos = df[df[col_tipo_voto] == "positivo"]
+
+        if df_validos.empty:
+            print("ERROR: No hay votos positivos en el DataFrame")
+            return {}
+
+        # Limpiar valores NaN
+        df_validos = df_validos.dropna(subset=[col_partido])
+
+        # Filtrar por sección específica
+        df_seccion = df_validos[
+            df_validos[col_seccion].apply(normalizar_texto) == seccion_norm
+        ]
+
+        if df_seccion.empty:
+            print(f"ADVERTENCIA: No se encontraron datos para la sección {seccion}")
+            return {}
+
+        # Calcular votos por partido
+        votos_por_partido = (
+            df_seccion.groupby(col_partido)[col_votos]
+            .sum()
+            .sort_values(ascending=False)
+        )
+
+        # Calcular votos en blanco (desde el dataframe original)
+        df_blancos = df[
+            (df[col_seccion].apply(normalizar_texto) == seccion_norm)
+            & (df[col_tipo_voto] == "blancos")
+        ]
+
+        votos_blancos = df_blancos[col_votos].sum() if not df_blancos.empty else 0
+
+        # Agregar votos en blanco al resultado
+        if votos_blancos > 0:
+            # Crear nueva serie incluyendo votos en blanco
+            votos_con_blancos = votos_por_partido.copy()
+            votos_con_blancos["VOTOS EN BLANCO"] = votos_blancos
+            votos_con_blancos = votos_con_blancos.sort_values(ascending=False)
+
+            # Calcular total incluyendo votos en blanco
+            total_votos = votos_con_blancos.sum()
+
+            # Calcular porcentajes
+            porcentajes = (votos_con_blancos / total_votos * 100).round(1)
+
+            resultado = {
+                "votos": votos_con_blancos.to_dict(),
+                "porcentajes": porcentajes.to_dict(),
+                "total_votos": total_votos,
+                "partidos": list(votos_con_blancos.index),
+                "votos_blancos": votos_blancos,
+            }
+        else:
+            # Si no hay votos en blanco, usar el cálculo original
+            total_votos = votos_por_partido.sum()
+            porcentajes = (votos_por_partido / total_votos * 100).round(1)
+
+            resultado = {
+                "votos": votos_por_partido.to_dict(),
+                "porcentajes": porcentajes.to_dict(),
+                "total_votos": total_votos,
+                "partidos": list(votos_por_partido.index),
+                "votos_blancos": 0,
+            }
+
+        return resultado
+
+    except Exception as e:
+        print(f"ERROR en votos_por_seccion: {e}")
+        return {}
+
+
 def secciones_ganadas(
     df,
     partidos,

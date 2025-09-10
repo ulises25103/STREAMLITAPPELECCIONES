@@ -26,6 +26,8 @@ from src.funciones_streamlit.funciones import (
     calcular_porcentaje_partido_por_seccion,
     secciones_ganadas,
     municipios_ganados,
+    analizar_rangos_votos,
+    votos_por_seccion,
 )
 
 
@@ -133,6 +135,119 @@ elif pagina == "Análisis por secciones":
         )
     )
 
+    # Selector de sección para análisis detallado
+    st.divider()
+    st.subheader("🔍 Análisis detallado por sección")
+
+    # Obtener lista de secciones disponibles
+    secciones_disponibles = sorted(df["Seccion"].unique())
+    seccion_seleccionada = st.selectbox(
+        "Selecciona una sección para analizar:",
+        secciones_disponibles,
+        help="Elige una sección electoral para ver el detalle de votos por partido",
+    )
+
+    if seccion_seleccionada:
+        # Calcular datos para la sección seleccionada
+        datos_seccion = votos_por_seccion(df, seccion_seleccionada)
+
+        if datos_seccion:
+            col1, col2 = st.columns([2, 1])
+
+            with col1:
+                st.subheader(f"📊 Porcentajes de votos - {seccion_seleccionada}")
+
+                # Crear gráfico de barras con porcentajes
+                import pandas as pd
+
+                df_grafico = pd.DataFrame(
+                    {
+                        "Partido": datos_seccion["partidos"][:10],  # Top 10 partidos
+                        "Porcentaje": [
+                            datos_seccion["porcentajes"][partido]
+                            for partido in datos_seccion["partidos"][:10]
+                        ],
+                    }
+                )
+
+                # Crear gráfico de barras usando matplotlib
+                import matplotlib.pyplot as plt
+
+                fig, ax = plt.subplots(figsize=(10, 6))
+                bars = ax.barh(df_grafico["Partido"], df_grafico["Porcentaje"])
+
+                # Personalizar el gráfico
+                ax.set_xlabel("Porcentaje de votos (%)")
+                titulo = f"Distribución de votos en {seccion_seleccionada}"
+                if datos_seccion.get("votos_blancos", 0) > 0:
+                    titulo += " (incluye votos en blanco)"
+                ax.set_title(titulo)
+                ax.grid(True, alpha=0.3)
+
+                # Agregar etiquetas con los valores
+                for bar, valor in zip(bars, df_grafico["Porcentaje"]):
+                    ax.text(
+                        bar.get_width() + 0.1,
+                        bar.get_y() + bar.get_height() / 2,
+                        f"{valor:.1f}%",
+                        ha="left",
+                        va="center",
+                    )
+
+                # Invertir el eje Y para que el partido con más votos aparezca arriba
+                ax.invert_yaxis()
+
+                st.pyplot(fig)
+
+            with col2:
+                titulo_tabla = f"📋 Votos por partido - {seccion_seleccionada}"
+                if datos_seccion.get("votos_blancos", 0) > 0:
+                    titulo_tabla += " (+ votos en blanco)"
+                st.subheader(titulo_tabla)
+
+                # Crear tabla con votos
+                df_tabla = pd.DataFrame(
+                    {
+                        "Partido": datos_seccion["partidos"],
+                        "Votos": [
+                            datos_seccion["votos"][partido]
+                            for partido in datos_seccion["partidos"]
+                        ],
+                        "Porcentaje": [
+                            f"{datos_seccion['porcentajes'][partido]:.1f}%"
+                            for partido in datos_seccion["partidos"]
+                        ],
+                    }
+                )
+
+                # Resaltar votos en blanco si existen
+                if datos_seccion.get("votos_blancos", 0) > 0:
+                    st.info(
+                        f"📝 **Votos en blanco:** {datos_seccion['votos_blancos']:,} votos ({(datos_seccion['votos_blancos'] / datos_seccion['total_votos'] * 100):.1f}%)"
+                    )
+
+                st.dataframe(
+                    df_tabla,
+                    use_container_width=True,
+                    column_config={
+                        "Votos": st.column_config.NumberColumn(format="%d"),
+                        "Porcentaje": st.column_config.TextColumn(),
+                    },
+                )
+
+                # Mostrar total de votos
+                st.metric(
+                    label="Total de votos válidos",
+                    value=f"{datos_seccion['total_votos']:,}".replace(",", "."),
+                )
+        else:
+            st.error(f"No se encontraron datos para la sección {seccion_seleccionada}")
+
+    # Información adicional
+    st.info(
+        "💡 **Cómo usar:** Selecciona una sección del desplegable para ver el detalle de votos por partido en esa sección específica, tanto en gráfico como en tabla. Los votos en blanco se incluyen como un 'partido' adicional cuando existen."
+    )
+
 elif pagina == "Municipios":
     st.subheader("Análisis por Municipios")
     st.divider()
@@ -201,6 +316,30 @@ elif pagina == "Municipios":
     with col4:
         fp_amba = conteo_amba.get("Fuerza Patria", 0)
         st.metric("FP (AMBA)", fp_amba)
+
+    # Mostrar rangos de porcentaje de votos
+    st.divider()
+    st.subheader("📊 Rangos de porcentaje de votos")
+
+    # Calcular rangos de votos para los partidos principales
+    partidos_rangos = ["Fuerza Patria", "La Libertad Avanza"]
+    rangos_resultados = analizar_rangos_votos(df, partidos_rangos)
+
+    if rangos_resultados:
+        # Crear tabla comparativa
+        import pandas as pd
+
+        # Crear DataFrame con los rangos
+        df_rangos = pd.DataFrame(rangos_resultados)
+        df_rangos = df_rangos.reset_index().rename(columns={"index": "Rango"})
+
+        # Mostrar tabla
+        st.dataframe(df_rangos, use_container_width=True)
+
+        # Agregar información adicional
+        st.info(
+            "💡 **Interpretación:** Esta tabla muestra cuántos municipios obtuvo cada porcentaje de votos para Fuerza Patria y La Libertad Avanza."
+        )
 
     # Mostrar detalle de municipios ganados
     st.divider()
