@@ -195,12 +195,12 @@ elif pagina == "Municipios":
         st.metric("Municipios AMBA", municipios_amba_count)
 
     with col3:
-        lla_total = conteo_total.get("La Libertad Avanza", 0)
-        st.metric("LLA (Total)", lla_total)
+        fp_total = conteo_total.get("Fuerza Patria", 0)
+        st.metric("FP (Total)", fp_total)
 
     with col4:
-        lla_amba = conteo_amba.get("La Libertad Avanza", 0)
-        st.metric("LLA (AMBA)", lla_amba)
+        fp_amba = conteo_amba.get("Fuerza Patria", 0)
+        st.metric("FP (AMBA)", fp_amba)
 
     # Mostrar detalle de municipios ganados
     st.divider()
