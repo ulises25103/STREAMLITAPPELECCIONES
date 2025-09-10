@@ -28,6 +28,7 @@ from src.funciones_streamlit.funciones import (
     municipios_ganados,
     analizar_rangos_votos,
     votos_por_seccion,
+    obtener_secciones_ordenadas,
 )
 
 
@@ -125,7 +126,7 @@ elif pagina == "Análisis por secciones":
         unsafe_allow_html=True,
     )
     partidos = ["Fuerza Patria", "La Libertad Avanza"]
-    conteo, ganadores = secciones_ganadas(df, partidos)
+    conteo, ganadores = secciones_ganadas(str(partidos))
 
     # Tabla resumen
     st.subheader("Secciones ganadas por partido")
@@ -139,8 +140,8 @@ elif pagina == "Análisis por secciones":
     st.divider()
     st.subheader("🔍 Análisis detallado por sección")
 
-    # Obtener lista de secciones disponibles
-    secciones_disponibles = sorted(df["Seccion"].unique())
+    # Obtener lista de secciones disponibles ordenadas
+    secciones_disponibles = obtener_secciones_ordenadas()
     seccion_seleccionada = st.selectbox(
         "Selecciona una sección para analizar:",
         secciones_disponibles,
@@ -149,7 +150,7 @@ elif pagina == "Análisis por secciones":
 
     if seccion_seleccionada:
         # Calcular datos para la sección seleccionada
-        datos_seccion = votos_por_seccion(df, seccion_seleccionada)
+        datos_seccion = votos_por_seccion(seccion_seleccionada)
 
         if datos_seccion:
             col1, col2 = st.columns([2, 1])
@@ -274,7 +275,7 @@ elif pagina == "Municipios":
         "Fte De Izq. Y De Trabajadores - Unidad",
     ]
     conteo_total, conteo_amba, ganadores_total, ganadores_amba = municipios_ganados(
-        df, partidos, MUNICIPIOS_AMBA
+        str(partidos), str(MUNICIPIOS_AMBA)
     )
 
     col1, col2 = st.columns(2)
@@ -323,7 +324,7 @@ elif pagina == "Municipios":
 
     # Calcular rangos de votos para los partidos principales
     partidos_rangos = ["Fuerza Patria", "La Libertad Avanza"]
-    rangos_resultados = analizar_rangos_votos(df, partidos_rangos)
+    rangos_resultados = analizar_rangos_votos(str(partidos_rangos))
 
     if rangos_resultados:
         # Crear tabla comparativa
