@@ -465,7 +465,9 @@ def calcular_porcentaje_partidos(diccionario_votos: dict) -> pd.Series:
 
 
 def mostrar_diccionario_como_tabla(
-    diccionario: dict, titulo: str = "📋 Total de votos por partido", tipo : str = "Partido"
+    diccionario: dict,
+    titulo: str = "📋 Total de votos por partido",
+    tipo: str = "Partido",
 ):
     df = pd.Series(diccionario).sort_values(ascending=False).reset_index()
     df.columns = [tipo, "Votos"]

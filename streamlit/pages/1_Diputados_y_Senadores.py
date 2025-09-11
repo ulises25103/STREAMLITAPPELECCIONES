@@ -98,7 +98,8 @@ elif pagina == "Análisis por secciones":
     }
     mostrar_diccionario_como_tabla(
         solo_votos_partido_fp,
-        "📋 Total de votos por sección (ordenadas alfabéticamente)","Sección"
+        "📋 Total de votos por sección (ordenadas alfabéticamente)",
+        "Sección",
     )
     porcentajes_FP = calcular_porcentaje_partido_por_seccion(datos_FP)
     st.subheader("📊 Porcentaje por secciones")

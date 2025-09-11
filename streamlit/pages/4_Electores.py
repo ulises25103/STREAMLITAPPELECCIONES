@@ -84,7 +84,8 @@ if df is not None:
         st.metric("👥 Electores Totales", f"{df['electores'].sum():,}")
 
     with col4:
-        st.metric("📈 Promedio por Mesa", ".1f")
+        promedio_por_mesa = df["electores"].mean()
+        st.metric("📈 Promedio por Mesa", f"{promedio_por_mesa:.1f}")
 
     st.markdown("---")
 
@@ -102,13 +103,31 @@ if df is not None:
         )
 
     with col2:
-        if municipio_seleccionado != "Todos":
-            df_filtrado = df[df["nombre_distrito"] == municipio_seleccionado].copy()
-        else:
-            df_filtrado = df.copy()
+        secciones = ["Todos"] + sorted(df["seccion_electoral"].unique().tolist())
+        seccion_seleccionada = st.selectbox(
+            "🗳️ Filtrar por Sección Electoral:",
+            secciones,
+            help="Selecciona una sección electoral para filtrar la tabla",
+        )
 
-        # Mostrar estadísticas del filtro
+    # Aplicar filtros
+    df_filtrado = df.copy()
+
+    if municipio_seleccionado != "Todos":
+        df_filtrado = df_filtrado[
+            df_filtrado["nombre_distrito"] == municipio_seleccionado
+        ]
+
+    if seccion_seleccionada != "Todos":
+        df_filtrado = df_filtrado[
+            df_filtrado["seccion_electoral"] == seccion_seleccionada
+        ]
+
+    # Mostrar estadísticas del filtro
+    col1, col2 = st.columns(2)
+    with col1:
         st.metric("Mesas en selección", f"{len(df_filtrado):,}")
+    with col2:
         st.metric("Electores en selección", f"{df_filtrado['electores'].sum():,}")
 
     st.markdown("---")
@@ -121,7 +140,10 @@ if df is not None:
         df_filtrado,
         column_config={
             "nombre_distrito": st.column_config.TextColumn("Municipio", width="medium"),
-            "cod_circ": st.column_config.TextColumn("Sección", width="small"),
+            "seccion_electoral": st.column_config.TextColumn(
+                "Sección Electoral", width="medium"
+            ),
+            "cod_circ": st.column_config.TextColumn("Código Circuito", width="small"),
             "establecimiento": st.column_config.TextColumn("Escuela", width="large"),
             "nro_mesa": st.column_config.NumberColumn("Mesa", width="small"),
             "electores": st.column_config.NumberColumn("Electores", width="small"),
@@ -137,13 +159,14 @@ if df is not None:
         **📊 Estadísticas del Dataset:**
         - **Total de mesas:** {len(df):,}
         - **Municipios únicos:** {df['nombre_distrito'].nunique()}
-        - **Secciones únicas:** {df['cod_circ'].nunique()}
+        - **Secciones únicas:** {df['seccion_electoral'].nunique()}
         - **Escuelas únicas:** {df['establecimiento'].nunique()}
         - **Total de electores:** {df['electores'].sum():,}
 
         **📋 Columnas disponibles:**
         - `nombre_distrito`: Municipio
-        - `cod_circ`: Sección electoral
+        - `seccion_electoral`: Sección electoral
+        - `cod_circ`: Código del circuito electoral
         - `establecimiento`: Nombre de la escuela
         - `nro_mesa`: Número de mesa
         - `electores`: Cantidad de electores en la mesa
