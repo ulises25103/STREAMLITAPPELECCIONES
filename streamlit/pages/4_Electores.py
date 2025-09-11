@@ -10,7 +10,7 @@ st.markdown("---")
 
 @st.cache_data
 def cargar_datos():
-    """Carga los datos del archivo CSV consolidado con extranjeros"""
+    """Carga los datos del archivo CSV consolidado con extranjeros y secciones correctas"""
     # Método más robusto para encontrar el directorio raíz del proyecto
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -18,7 +18,9 @@ def cargar_datos():
     project_root = None
     for _ in range(10):  # Máximo 10 niveles hacia arriba
         if os.path.exists(
-            os.path.join(current_dir, "utils", "data", "mesas_con_extranjeros.csv")
+            os.path.join(
+                current_dir, "utils", "data", "mesas_con_extranjeros_secciones.csv"
+            )
         ):
             project_root = current_dir
             break
@@ -29,20 +31,22 @@ def cargar_datos():
 
     if project_root:
         ruta_csv = os.path.join(
-            project_root, "utils", "data", "mesas_con_extranjeros.csv"
+            project_root, "utils", "data", "mesas_con_extranjeros_secciones.csv"
         )
     else:
         # Fallback: usar ruta relativa desde donde esté corriendo el script
-        ruta_csv = os.path.join("utils", "data", "mesas_con_extranjeros.csv")
+        ruta_csv = os.path.join("utils", "data", "mesas_con_extranjeros_secciones.csv")
 
     try:
         df = pd.read_csv(ruta_csv)
         return df
     except FileNotFoundError:
-        st.error("❌ No se encontró el archivo 'mesas_con_extranjeros.csv'")
+        st.error("❌ No se encontró el archivo 'mesas_con_extranjeros_secciones.csv'")
         st.info(f"💡 Ruta buscada: {ruta_csv}")
         st.info("💡 El archivo debería estar en: utils/data/")
-        st.info("💡 Asegúrate de haber ejecutado 'unir_extranjeros_mesas.py' primero")
+        st.info(
+            "💡 Asegúrate de haber ejecutado 'unir_extranjeros_mesas.py' y 'mapear_secciones_extranjeros.py'"
+        )
 
         # Mostrar archivos disponibles en el directorio actual
         current_dir = os.getcwd()
@@ -73,8 +77,9 @@ df = cargar_datos()
 
 if df is not None:
     # Separar datos de mesas locales y extranjeras
-    df_locales = df[df["seccion_electoral"] != "EXTRANJEROS"]
-    df_extranjeros = df[df["seccion_electoral"] == "EXTRANJEROS"]
+    # Las mesas de extranjeros tienen extranjeros > 0 y electores = 0
+    df_locales = df[df["extranjeros"] == 0]
+    df_extranjeros = df[df["extranjeros"] > 0]
 
     # Métricas principales
     col1, col2, col3, col4, col5, col6 = st.columns(6)
@@ -124,7 +129,7 @@ if df is not None:
         if tipo_mesa == "Solo mesas locales":
             secciones_base = df_locales["seccion_electoral"].unique().tolist()
         elif tipo_mesa == "Solo mesas de extranjeros":
-            secciones_base = ["EXTRANJEROS"]
+            secciones_base = df_extranjeros["seccion_electoral"].unique().tolist()
         else:
             secciones_base = df["seccion_electoral"].unique().tolist()
 
@@ -140,9 +145,9 @@ if df is not None:
 
     # Aplicar filtro de tipo de mesa
     if tipo_mesa == "Solo mesas locales":
-        df_filtrado = df_filtrado[df_filtrado["seccion_electoral"] != "EXTRANJEROS"]
+        df_filtrado = df_filtrado[df_filtrado["extranjeros"] == 0]
     elif tipo_mesa == "Solo mesas de extranjeros":
-        df_filtrado = df_filtrado[df_filtrado["seccion_electoral"] == "EXTRANJEROS"]
+        df_filtrado = df_filtrado[df_filtrado["extranjeros"] > 0]
 
     if municipio_seleccionado != "Todos":
         df_filtrado = df_filtrado[
@@ -252,6 +257,8 @@ if df is not None:
 else:
     st.error("❌ No se pudieron cargar los datos")
     st.info(
-        "💡 Verifica que el archivo 'mesas_con_extranjeros.csv' exista en: utils/data/"
+        "💡 Verifica que el archivo 'mesas_con_extranjeros_secciones.csv' exista en: utils/data/"
     )
-    st.info("💡 Asegúrate de haber ejecutado 'unir_extranjeros_mesas.py' primero")
+    st.info(
+        "💡 Asegúrate de haber ejecutado 'unir_extranjeros_mesas.py' y 'mapear_secciones_extranjeros.py'"
+    )
