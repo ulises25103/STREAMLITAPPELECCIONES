@@ -4,13 +4,13 @@ import os
 
 st.set_page_config(page_title="📊 Mesas Electorales", page_icon="🗳️", layout="wide")
 
-st.title("📊 MESAS ELECTORALES CON EXTRANJEROS - PADRON 2025")
+st.title("📊 MESAS ELECTORALES - PADRON 2025")
 st.markdown("---")
 
 
 @st.cache_data
 def cargar_datos():
-    """Carga los datos del archivo CSV consolidado con extranjeros y secciones correctas"""
+    """Carga los datos del archivo CSV de mesas electores consolidado"""
     # Método más robusto para encontrar el directorio raíz del proyecto
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -18,9 +18,7 @@ def cargar_datos():
     project_root = None
     for _ in range(10):  # Máximo 10 niveles hacia arriba
         if os.path.exists(
-            os.path.join(
-                current_dir, "utils", "data", "mesas_con_extranjeros_secciones.csv"
-            )
+            os.path.join(current_dir, "utils", "data", "base_mesas_electores.csv")
         ):
             project_root = current_dir
             break
@@ -31,22 +29,24 @@ def cargar_datos():
 
     if project_root:
         ruta_csv = os.path.join(
-            project_root, "utils", "data", "mesas_con_extranjeros_secciones.csv"
+            project_root, "utils", "data", "base_mesas_electores.csv"
         )
     else:
         # Fallback: usar ruta relativa desde donde esté corriendo el script
-        ruta_csv = os.path.join("utils", "data", "mesas_con_extranjeros_secciones.csv")
+        ruta_csv = os.path.join("utils", "data", "base_mesas_electores.csv")
 
     try:
         df = pd.read_csv(ruta_csv)
+
+        # Agregar columna de distrito como string para mejor visualización
+        df["distrito_str"] = df["distrito"].astype(str)
+
         return df
     except FileNotFoundError:
-        st.error("❌ No se encontró el archivo 'mesas_con_extranjeros_secciones.csv'")
+        st.error("❌ No se encontró el archivo 'base_mesas_electores.csv'")
         st.info(f"💡 Ruta buscada: {ruta_csv}")
         st.info("💡 El archivo debería estar en: utils/data/")
-        st.info(
-            "💡 Asegúrate de haber ejecutado 'unir_extranjeros_mesas.py' y 'mapear_secciones_extranjeros.py'"
-        )
+        st.info("💡 Asegúrate de haber ejecutado el procesamiento de las bases ZIP")
 
         # Mostrar archivos disponibles en el directorio actual
         current_dir = os.getcwd()
@@ -61,14 +61,6 @@ def cargar_datos():
         except:
             st.write("  - No se pudo listar archivos")
 
-        # Intentar buscar en utils/data si existe
-        utils_data = os.path.join(current_dir, "utils", "data")
-        if os.path.exists(utils_data):
-            st.info(f"📁 Archivos en {utils_data}:")
-            archivos_data = os.listdir(utils_data)
-            for archivo in archivos_data:
-                st.write(f"  - {archivo}")
-
         return None
 
 
@@ -76,31 +68,32 @@ def cargar_datos():
 df = cargar_datos()
 
 if df is not None:
-    # Separar datos de mesas locales y extranjeras
-    # Las mesas de extranjeros tienen extranjeros > 0 y electores = 0
-    df_locales = df[df["extranjeros"] == 0]
-    df_extranjeros = df[df["extranjeros"] > 0]
+    # Separar datos de mesas nativas y extranjeras
+    df_nativas = df[df["tipo"] == "NATIVA"]
+    df_extranjeras = df[df["tipo"] == "EXTRANJERA"]
 
     # Métricas principales
     col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
-        st.metric("🏛️ Municipios", f"{df['nombre_distrito'].nunique():,}")
+        st.metric("🏛️ Distritos", f"{df['distrito'].nunique():,}")
 
     with col2:
         st.metric("📋 Mesas Totales", f"{len(df):,}")
 
     with col3:
-        st.metric("🏠 Mesas Locales", f"{len(df_locales):,}")
+        st.metric("🏠 Mesas Nativas", f"{len(df_nativas):,}")
 
     with col4:
-        st.metric("🌍 Mesas Extranjeros", f"{len(df_extranjeros):,}")
+        st.metric("🌍 Mesas Extranjeras", f"{len(df_extranjeras):,}")
 
     with col5:
-        st.metric("👥 Electores Locales", f"{df_locales['electores'].sum():,}")
+        st.metric("👥 Electores Nativos", f"{df_nativas['cantidad_electores'].sum():,}")
 
     with col6:
-        st.metric("🧑‍🤝‍🧑 Extranjeros", f"{df_extranjeros['extranjeros'].sum():,}")
+        st.metric(
+            "🧑‍🤝‍🧑 Extranjeros", f"{df_extranjeras['cantidad_electores'].sum():,}"
+        )
 
     st.markdown("---")
 
@@ -112,70 +105,69 @@ if df is not None:
     with col1:
         tipo_mesa = st.selectbox(
             "🏷️ Tipo de Mesa:",
-            ["Todas las mesas", "Solo mesas locales", "Solo mesas de extranjeros"],
+            ["Todas las mesas", "Solo mesas nativas", "Solo mesas extranjeras"],
             help="Filtrar por tipo de mesa electoral",
         )
 
     with col2:
-        municipios = ["Todos"] + sorted(df["nombre_distrito"].unique().tolist())
-        municipio_seleccionado = st.selectbox(
-            "🏛️ Filtrar por Municipio:",
-            municipios,
-            help="Selecciona un municipio para filtrar la tabla",
+        distritos = ["Todos"] + sorted(df["distrito"].unique().tolist())
+        distrito_seleccionado = st.selectbox(
+            "🏛️ Filtrar por Distrito:",
+            distritos,
+            help="Selecciona un distrito para filtrar la tabla",
         )
 
     with col3:
-        # Filtrar secciones según el tipo de mesa seleccionado
-        if tipo_mesa == "Solo mesas locales":
-            secciones_base = df_locales["seccion_electoral"].unique().tolist()
-        elif tipo_mesa == "Solo mesas de extranjeros":
-            secciones_base = df_extranjeros["seccion_electoral"].unique().tolist()
+        # Filtrar circuitos según el tipo de mesa seleccionado
+        if tipo_mesa == "Solo mesas nativas":
+            circuitos_base = df_nativas["cod_circ"].unique().tolist()
+        elif tipo_mesa == "Solo mesas extranjeras":
+            circuitos_base = df_extranjeras["cod_circ"].unique().tolist()
         else:
-            secciones_base = df["seccion_electoral"].unique().tolist()
+            circuitos_base = df["cod_circ"].unique().tolist()
 
-        secciones = ["Todos"] + sorted(secciones_base)
-        seccion_seleccionada = st.selectbox(
-            "🗳️ Filtrar por Sección Electoral:",
-            secciones,
-            help="Selecciona una sección electoral para filtrar la tabla",
+        circuitos = ["Todos"] + sorted(circuitos_base)
+        circuito_seleccionado = st.selectbox(
+            "🗳️ Filtrar por Circuito:",
+            circuitos,
+            help="Selecciona un circuito electoral para filtrar la tabla",
         )
 
     # Aplicar filtros
     df_filtrado = df.copy()
 
     # Aplicar filtro de tipo de mesa
-    if tipo_mesa == "Solo mesas locales":
-        df_filtrado = df_filtrado[df_filtrado["extranjeros"] == 0]
-    elif tipo_mesa == "Solo mesas de extranjeros":
-        df_filtrado = df_filtrado[df_filtrado["extranjeros"] > 0]
+    if tipo_mesa == "Solo mesas nativas":
+        df_filtrado = df_filtrado[df_filtrado["tipo"] == "NATIVA"]
+    elif tipo_mesa == "Solo mesas extranjeras":
+        df_filtrado = df_filtrado[df_filtrado["tipo"] == "EXTRANJERA"]
 
-    if municipio_seleccionado != "Todos":
-        df_filtrado = df_filtrado[
-            df_filtrado["nombre_distrito"] == municipio_seleccionado
-        ]
+    if distrito_seleccionado != "Todos":
+        df_filtrado = df_filtrado[df_filtrado["distrito"] == distrito_seleccionado]
 
-    if seccion_seleccionada != "Todos":
-        df_filtrado = df_filtrado[
-            df_filtrado["seccion_electoral"] == seccion_seleccionada
-        ]
+    if circuito_seleccionado != "Todos":
+        df_filtrado = df_filtrado[df_filtrado["cod_circ"] == circuito_seleccionado]
 
     # Mostrar estadísticas del filtro
-    if tipo_mesa == "Solo mesas de extranjeros":
+    if tipo_mesa == "Solo mesas extranjeras":
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Mesas en selección", f"{len(df_filtrado):,}")
         with col2:
             st.metric(
-                "Extranjeros en selección", f"{df_filtrado['extranjeros'].sum():,}"
+                "Extranjeros en selección",
+                f"{df_filtrado['cantidad_electores'].sum():,}",
             )
     else:
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Mesas en selección", f"{len(df_filtrado):,}")
         with col2:
-            st.metric("Electores locales", f"{df_filtrado['electores'].sum():,}")
+            st.metric(
+                "Electores nativos", f"{df_filtrado['cantidad_electores'].sum():,}"
+            )
         with col3:
-            st.metric("Total electores", f"{df_filtrado['electores_total'].sum():,}")
+            st.metric("Total electores", f"{df['cantidad_electores'].sum():,}")
 
     st.markdown("---")
 
@@ -183,42 +175,14 @@ if df is not None:
     st.subheader("📋 TABLA DE MESAS ELECTORALES")
 
     # Configurar la tabla para mostrar mejor
-    if tipo_mesa == "Solo mesas de extranjeros":
-        # Configuración para mesas de extranjeros
-        column_config = {
-            "nombre_distrito": st.column_config.TextColumn("Municipio", width="medium"),
-            "seccion_electoral": st.column_config.TextColumn(
-                "Sección Electoral", width="medium"
-            ),
-            "cod_circ": st.column_config.TextColumn("Código Circuito", width="small"),
-            "establecimiento": st.column_config.TextColumn("Escuela", width="large"),
-            "nro_mesa": st.column_config.NumberColumn("Mesa", width="small"),
-            "electores": st.column_config.NumberColumn(
-                "Electores Locales", width="small"
-            ),
-            "extranjeros": st.column_config.NumberColumn("Extranjeros", width="small"),
-            "electores_total": st.column_config.NumberColumn(
-                "Total Electores", width="small"
-            ),
-        }
-    else:
-        # Configuración para mesas locales o todas
-        column_config = {
-            "nombre_distrito": st.column_config.TextColumn("Municipio", width="medium"),
-            "seccion_electoral": st.column_config.TextColumn(
-                "Sección Electoral", width="medium"
-            ),
-            "cod_circ": st.column_config.TextColumn("Código Circuito", width="small"),
-            "establecimiento": st.column_config.TextColumn("Escuela", width="large"),
-            "nro_mesa": st.column_config.NumberColumn("Mesa", width="small"),
-            "electores": st.column_config.NumberColumn(
-                "Electores Locales", width="small"
-            ),
-            "extranjeros": st.column_config.NumberColumn("Extranjeros", width="small"),
-            "electores_total": st.column_config.NumberColumn(
-                "Total Electores", width="small"
-            ),
-        }
+    column_config = {
+        "distrito_str": st.column_config.TextColumn("Distrito", width="small"),
+        "cod_circ": st.column_config.TextColumn("Código Circuito", width="small"),
+        "establecimiento": st.column_config.TextColumn("Escuela", width="large"),
+        "nro_mesa": st.column_config.NumberColumn("Mesa", width="small"),
+        "cantidad_electores": st.column_config.NumberColumn("Electores", width="small"),
+        "tipo": st.column_config.TextColumn("Tipo", width="medium"),
+    }
 
     st.dataframe(
         df_filtrado,
@@ -233,32 +197,34 @@ if df is not None:
             f"""
         **📊 Estadísticas del Dataset:**
         - **Total de mesas:** {len(df):,}
-        - **Mesas locales:** {len(df_locales):,}
-        - **Mesas de extranjeros:** {len(df_extranjeros):,}
-        - **Municipios únicos:** {df['nombre_distrito'].nunique()}
-        - **Secciones únicas:** {df['seccion_electoral'].nunique()}
+        - **Mesas nativas:** {len(df_nativas):,}
+        - **Mesas extranjeras:** {len(df_extranjeras):,}
+        - **Distritos únicos:** {df['distrito'].nunique()}
+        - **Circuitos únicos:** {df['cod_circ'].nunique()}
         - **Escuelas únicas:** {df['establecimiento'].nunique()}
-        - **Electores locales:** {df_locales['electores'].sum():,}
-        - **Extranjeros:** {df_extranjeros['extranjeros'].sum():,}
-        - **Total de electores:** {df['electores_total'].sum():,}
+        - **Electores nativos:** {df_nativas['cantidad_electores'].sum():,}
+        - **Extranjeros:** {df_extranjeras['cantidad_electores'].sum():,}
+        - **Total de electores:** {df['cantidad_electores'].sum():,}
 
         **📋 Columnas disponibles:**
-        - `nombre_distrito`: Municipio
-        - `seccion_electoral`: Sección electoral (EXTRANJEROS para mesas de extranjeros)
+        - `distrito`: Código del distrito/municipio
         - `cod_circ`: Código del circuito electoral
         - `establecimiento`: Nombre de la escuela
         - `nro_mesa`: Número de mesa
-        - `electores`: Cantidad de electores locales en la mesa
-        - `extranjeros`: Cantidad de extranjeros en la mesa
-        - `electores_total`: Total de electores (locales + extranjeros)
+        - `cantidad_electores`: Cantidad de electores en la mesa
+        - `tipo`: Tipo de mesa (NATIVA/EXTRANJERA)
+
+        **🔧 Origen de los datos:**
+        - Base procesada desde archivos ZIP: `padron_2025.zip` y `padron_extranjeros_2025.zip`
+        - Agrupación por combinación única de `cod_circ` + `nro_mesa`
         """
         )
 
 else:
     st.error("❌ No se pudieron cargar los datos")
     st.info(
-        "💡 Verifica que el archivo 'mesas_con_extranjeros_secciones.csv' exista en: utils/data/"
+        "💡 Verifica que el archivo 'base_mesas_electores.csv' exista en: utils/data/"
     )
     st.info(
-        "💡 Asegúrate de haber ejecutado 'unir_extranjeros_mesas.py' y 'mapear_secciones_extranjeros.py'"
+        "💡 Asegúrate de haber ejecutado el procesamiento de las bases ZIP de padrones"
     )
